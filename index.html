@@ -792,7 +792,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
       : legacyPhotos;
     spherePhotoFiles = assets.spherePhotos && Array.isArray(assets.spherePhotos.value)
       ? assets.spherePhotos.value
-      : legacyPhotos;
+      : [];
     renderLetterPhotos();
     renderSpherePhotos();
     if (assets.music && assets.music.value instanceof Blob) setMusic(assets.music.value, assets.music.name || 'Nhạc đã lưu');
