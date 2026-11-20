@@ -211,6 +211,20 @@
         font-style: italic;
         text-align: right;
       }
+      .typing-cursor {
+        display: inline-block;
+        width: 1px;
+        height: 1em;
+        margin-left: 2px;
+        vertical-align: -0.12em;
+        background: currentColor;
+        animation: typing-blink 0.75s steps(2, end) infinite;
+      }
+      @keyframes typing-blink {
+        50% {
+          opacity: 0;
+        }
+      }
       .actions {
         display: flex;
         justify-content: center;
@@ -1375,6 +1389,8 @@
       let universeFrame = 0;
       let universeLastFrame = 0;
       let universeResizeHandler = null;
+      let fullLetterText = {};
+      let letterTypingRun = 0;
       let rotationX = -8;
       let rotationY = 0;
       let zoomLevel = 1;
@@ -1400,9 +1416,83 @@
         document.getElementById("greeting").textContent = settings.greeting;
         document.getElementById("message").textContent = settings.message;
         document.getElementById("signature").textContent = settings.signature;
+        fullLetterText = {
+          eyebrow: settings.eyebrow,
+          title: settings.title,
+          greeting: settings.greeting,
+          message: settings.message,
+          signature: settings.signature,
+        };
         for (const [name, value] of Object.entries(settings)) {
           editorForm.elements.namedItem(name).value = value;
         }
+        restoreFullLetterText();
+        if (scene.classList.contains("open")) animateLetterText();
+      }
+
+      function restoreFullLetterText() {
+        for (const [id, text] of Object.entries(fullLetterText))
+          document.getElementById(id).textContent = text;
+      }
+
+      function cancelLetterTyping() {
+        letterTypingRun += 1;
+        restoreFullLetterText();
+      }
+
+      function letterCharacters(text) {
+        if (typeof Intl.Segmenter === "function") {
+          const segmenter = new Intl.Segmenter("vi", {
+            granularity: "grapheme",
+          });
+          return Array.from(segmenter.segment(text), (part) => part.segment);
+        }
+        return Array.from(text);
+      }
+
+      async function typeLetterText(runId) {
+        const fields = ["eyebrow", "title", "greeting", "message", "signature"];
+        for (const id of fields)
+          document.getElementById(id).textContent = "";
+        for (const id of fields) {
+          const element = document.getElementById(id);
+          const text = fullLetterText[id];
+          const characters = letterCharacters(text);
+          const textNode = document.createTextNode("");
+          const cursor = document.createElement("span");
+          cursor.className = "typing-cursor";
+          cursor.setAttribute("aria-hidden", "true");
+          element.replaceChildren(textNode, cursor);
+
+          const characterDelay =
+            characters.length > 600 ? 5 : characters.length > 250 ? 10 : 20;
+          for (const character of characters) {
+            if (runId !== letterTypingRun) return;
+            textNode.appendData(character);
+            const pause = /[,.!?;:]/u.test(character)
+              ? 90
+              : character === "\n"
+                ? 120
+                : characterDelay;
+            await new Promise((resolve) => setTimeout(resolve, pause));
+          }
+          cursor.remove();
+        }
+      }
+
+      function animateLetterText() {
+        letterTypingRun += 1;
+        const runId = letterTypingRun;
+        if (reducedMotionQuery.matches) {
+          restoreFullLetterText();
+          return;
+        }
+        typeLetterText(runId).catch((error) => {
+          if (runId !== letterTypingRun) return;
+          console.error("Could not animate letter text:", error);
+          restoreFullLetterText();
+          showStatus("Không thể chạy hiệu ứng gõ chữ: " + error.message);
+        });
       }
 
       function readSettings() {
@@ -2035,6 +2125,8 @@
       }
 
       function handleMotionPreferenceChange() {
+        if (reducedMotionQuery.matches && scene.classList.contains("open"))
+          cancelLetterTyping();
         if (!universe.classList.contains("open")) return;
         cancelAnimationFrame(universeFrame);
         universeLastFrame = performance.now();
@@ -2052,13 +2144,16 @@
       document.getElementById("openLetter").addEventListener("click", () => {
         scene.classList.add("open");
         letterWrap.setAttribute("aria-hidden", "false");
+        animateLetterText();
         makeHearts();
       });
       document.getElementById("closeLetter").addEventListener("click", () => {
+        cancelLetterTyping();
         scene.classList.remove("open");
         letterWrap.setAttribute("aria-hidden", "true");
       });
       document.getElementById("openUniverse").addEventListener("click", () => {
+        cancelLetterTyping();
         cancelAnimationFrame(universeFrame);
         if (!editorPanel.hidden) {
           editorPanel.hidden = true;
