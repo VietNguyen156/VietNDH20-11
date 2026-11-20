@@ -16,11 +16,11 @@ const settingLimits = {
   signature: 240,
 };
 
-function jsonResponse(response, data, status = 200) {
-  response.statusCode = status;
-  response.setHeader("Content-Type", "application/json; charset=utf-8");
-  response.setHeader("Cache-Control", "no-store");
-  response.end(JSON.stringify(data));
+function jsonResponse(data, status = 200) {
+  return Response.json(data, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 
 function isPublicCardBlobUrl(value) {
@@ -99,14 +99,13 @@ function mediaUrls(card) {
   ].map((item) => item.url);
 }
 
-export default async function handler(request, response) {
+async function handler(request) {
   if (request.method === "GET") {
     try {
-      return jsonResponse(response, { state: await readStoredCard() });
+      return jsonResponse({ state: await readStoredCard() });
     } catch (error) {
       console.error("Could not read published card:", error);
       return jsonResponse(
-        response,
         { error: "Không đọc được dữ liệu trên Vercel Blob." },
         503,
       );
@@ -115,40 +114,33 @@ export default async function handler(request, response) {
 
   if (request.method !== "PUT")
     return jsonResponse(
-      response,
       { error: "Phương thức không được hỗ trợ." },
       405,
     );
 
   if (!editorPasswordConfigured())
     return jsonResponse(
-      response,
       { error: "Chưa cấu hình mật khẩu quản trị." },
       503,
     );
 
-  const authorization = request.headers.authorization || "";
+  const authorization = request.headers.get("authorization") || "";
   const suppliedPassword = authorization.startsWith("Bearer ")
     ? authorization.slice(7)
     : "";
   if (!isEditorPasswordValid(suppliedPassword))
     return jsonResponse(
-      response,
       { error: "Mật khẩu quản trị không đúng." },
       401,
     );
 
   try {
-    const card =
-      typeof request.body === "string"
-        ? JSON.parse(request.body)
-        : request.body;
+    const card = await request.json();
     if (
       !validateCardState(card) ||
       Buffer.byteLength(JSON.stringify(card), "utf8") > 1_000_000
     )
       return jsonResponse(
-        response,
         { error: "Dữ liệu thiệp không hợp lệ." },
         400,
       );
@@ -177,13 +169,14 @@ export default async function handler(request, response) {
       }
     }
 
-    return jsonResponse(response, { ok: true, cleanupWarning });
+    return jsonResponse({ ok: true, cleanupWarning });
   } catch (error) {
     console.error("Could not publish card:", error);
     return jsonResponse(
-      response,
       { error: error.message || "Không thể xuất bản thiệp." },
       500,
     );
   }
 }
+
+export default { fetch: handler };
