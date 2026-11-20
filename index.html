@@ -1642,13 +1642,27 @@
       async function readPublishedCard() {
         if (!["http:", "https:"].includes(window.location.protocol))
           return { available: false, state: null };
-        const response = await fetch("/api/card", { cache: "no-store" });
+        const response = await fetchWithTimeout(
+          "/api/card",
+          { cache: "no-store" },
+          15000,
+        );
         if (response.status === 404)
           return { available: false, state: null };
         const result = await response.json();
         if (!response.ok)
           throw new Error(result.error || "Không tải được thiệp đã xuất bản.");
         return { available: true, state: result.state };
+      }
+
+      async function fetchWithTimeout(url, options, timeoutMs) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+          clearTimeout(timeout);
+        }
       }
 
       async function uploadMediaFile(file, category, password) {
@@ -1724,18 +1738,22 @@
         }
 
         await saveAssets();
-        const response = await fetch("/api/card", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + password,
+        const response = await fetchWithTimeout(
+          "/api/card",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + password,
+            },
+            body: JSON.stringify({
+              settings,
+              photos: { letter, sphere },
+              music,
+            }),
           },
-          body: JSON.stringify({
-            settings,
-            photos: { letter, sphere },
-            music,
-          }),
-        });
+          30000,
+        );
         const result = await response.json();
         if (!response.ok)
           throw new Error(result.error || "Không thể cập nhật website chính.");

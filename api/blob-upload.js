@@ -22,22 +22,37 @@ const audioTypes = [
   "audio/x-wav",
 ];
 
-export default async function handler(request) {
+function jsonResponse(response, data, status = 200) {
+  response.statusCode = status;
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader("Cache-Control", "no-store");
+  response.end(JSON.stringify(data));
+}
+
+export default async function handler(request, response) {
   if (request.method !== "POST")
-    return Response.json(
+    return jsonResponse(
+      response,
       { error: "Phương thức không được hỗ trợ." },
-      { status: 405 },
+      405,
     );
 
   if (!editorPasswordConfigured())
-    return Response.json(
+    return jsonResponse(
+      response,
       { error: "Chưa cấu hình mật khẩu quản trị." },
-      { status: 503 },
+      503,
     );
 
   try {
-    const body = await request.json();
-    const response = await handleUpload({
+    const body =
+      typeof request.body === "string"
+        ? JSON.parse(request.body)
+        : request.body;
+    if (!body || typeof body !== "object")
+      return jsonResponse(response, { error: "Yêu cầu tải tệp không hợp lệ." }, 400);
+
+    const uploadResult = await handleUpload({
       body,
       request,
       onBeforeGenerateToken: async (pathname, clientPayload) => {
@@ -57,12 +72,13 @@ export default async function handler(request) {
         };
       },
     });
-    return Response.json(response);
+    return jsonResponse(response, uploadResult);
   } catch (error) {
     console.error("Could not authorize card media upload:", error);
-    return Response.json(
+    return jsonResponse(
+      response,
       { error: error.message || "Không thể tải tệp lên." },
-      { status: 400 },
+      400,
     );
   }
 }
