@@ -1225,8 +1225,9 @@
             Bỏ nhạc
           </button>
           <p class="editor-note">
-            Các thay đổi chỉ được lưu trên thiết bị/trình duyệt này, không đồng
-            bộ cho khách truy cập khác.
+            Trên Vercel đã cấu hình, “Lưu thay đổi” cập nhật bản dùng chung.
+            Khi xem trước bằng file hoặc Live Server, dữ liệu chỉ lưu trên thiết
+            bị này.
           </p>
           <div class="editor-buttons">
             <button class="save-button" type="submit">Lưu thay đổi</button>
@@ -1242,7 +1243,7 @@
           ></p>
         </form>
       </aside>
-      <audio id="backgroundMusic" loop preload="none"></audio>
+      <audio id="backgroundMusic" loop preload="auto" autoplay></audio>
       <section
         class="universe"
         id="universe"
@@ -1359,14 +1360,17 @@
       const ownerEditMode =
         isLocalPreview ||
         new URLSearchParams(window.location.search).get("edit") === "1";
-      let letterPhotoFiles = [];
+      let letterPhotoItems = [];
       let letterPhotoUrls = [];
-      let spherePhotoFiles = [];
+      let spherePhotoItems = [];
       let spherePhotoUrls = [];
       let universePhotoUrls = [];
       let musicFile = null;
       let musicUrl = "";
+      let musicRemoteUrl = "";
       let musicName = "";
+      let musicStartListenersAttached = false;
+      let cloudApiAvailable = false;
       let universeFrame = 0;
       let universeLastFrame = 0;
       let universeResizeHandler = null;
@@ -1454,16 +1458,47 @@
         });
       }
 
+      function normalizePhotoItems(value) {
+        if (!Array.isArray(value)) return [];
+        return value
+          .map((item) => {
+            if (item instanceof Blob)
+              return {
+                file: item,
+                url: "",
+                name: item.name || "Ảnh kỷ niệm",
+              };
+            if (!item || typeof item !== "object") return null;
+            const file = item.file instanceof Blob ? item.file : null;
+            const url = typeof item.url === "string" ? item.url : "";
+            if (!file && !url) return null;
+            return {
+              file,
+              url,
+              name:
+                typeof item.name === "string" && item.name
+                  ? item.name
+                  : "Ảnh kỷ niệm",
+            };
+          })
+          .filter(Boolean);
+      }
+
       async function saveAssets() {
         const database = await openDatabase();
         return new Promise((resolve, reject) => {
           const transaction = database.transaction("assets", "readwrite");
           const store = transaction.objectStore("assets");
-          store.put({ id: "letterPhotos", value: letterPhotoFiles });
-          store.put({ id: "spherePhotos", value: spherePhotoFiles });
+          store.put({ id: "letterPhotos", value: letterPhotoItems });
+          store.put({ id: "spherePhotos", value: spherePhotoItems });
           store.delete("photos");
-          if (musicFile)
-            store.put({ id: "music", value: musicFile, name: musicName });
+          if (musicFile || musicRemoteUrl)
+            store.put({
+              id: "music",
+              value: musicFile,
+              url: musicRemoteUrl,
+              name: musicName,
+            });
           else store.delete("music");
           transaction.oncomplete = () => {
             database.close();
@@ -1485,14 +1520,14 @@
         });
       }
 
-      function renderPhotoCollection(files, urls, editorList, gallery, label) {
+      function renderPhotoCollection(items, urls, editorList, gallery, label) {
         urls.forEach((url) => URL.revokeObjectURL(url));
         urls.length = 0;
         editorList.replaceChildren();
         if (gallery) gallery.replaceChildren();
-        files.forEach((file, index) => {
-          const url = URL.createObjectURL(file);
-          urls.push(url);
+        items.forEach((photo, index) => {
+          const url = photo.url || URL.createObjectURL(photo.file);
+          if (!photo.url) urls.push(url);
           if (gallery) {
             const image = document.createElement("img");
             image.src = url;
@@ -1513,10 +1548,10 @@
             "Xóa " + label.toLowerCase() + " " + (index + 1),
           );
           remove.addEventListener("click", () => {
-            files.splice(index, 1);
-            renderPhotoCollection(files, urls, editorList, gallery, label);
+            items.splice(index, 1);
+            renderPhotoCollection(items, urls, editorList, gallery, label);
             if (
-              files === spherePhotoFiles &&
+              items === spherePhotoItems &&
               universe.classList.contains("open")
             )
               renderMemoryCards();
@@ -1528,7 +1563,7 @@
 
       function renderLetterPhotos() {
         renderPhotoCollection(
-          letterPhotoFiles,
+          letterPhotoItems,
           letterPhotoUrls,
           letterPhotoEditorList,
           photoGallery,
@@ -1538,7 +1573,7 @@
 
       function renderSpherePhotos() {
         renderPhotoCollection(
-          spherePhotoFiles,
+          spherePhotoItems,
           spherePhotoUrls,
           spherePhotoEditorList,
           null,
@@ -1546,23 +1581,231 @@
         );
       }
 
-      function setMusic(file, name) {
-        if (musicUrl) URL.revokeObjectURL(musicUrl);
+      function setMusic(file, name, remoteUrl = "") {
+        if (musicUrl.startsWith("blob:")) URL.revokeObjectURL(musicUrl);
         musicFile = file;
+        musicRemoteUrl = remoteUrl;
         musicName = name || "";
-        musicUrl = file ? URL.createObjectURL(file) : "";
+        musicUrl = file ? URL.createObjectURL(file) : remoteUrl;
         music.pause();
         if (musicUrl) music.src = musicUrl;
         else {
           music.removeAttribute("src");
           music.load();
         }
-        document.getElementById("musicName").textContent = musicFile
+        document.getElementById("musicName").textContent = musicUrl
           ? musicName
           : "Chưa chọn nhạc.";
-        musicToggle.textContent = musicFile ? "♫ Bật nhạc" : "♫ Chưa có nhạc";
-        musicToggle.setAttribute("aria-pressed", "false");
-        musicToggle.disabled = !musicFile;
+        updateMusicToggle();
+        if (musicUrl) startMusic();
+        else removeMusicStartListeners();
+      }
+
+      function updateMusicToggle() {
+        musicToggle.textContent = music.paused ? "♫ Bật nhạc" : "♫ Tắt nhạc";
+        musicToggle.setAttribute("aria-pressed", String(!music.paused));
+        musicToggle.disabled = !musicUrl;
+      }
+
+      function removeMusicStartListeners() {
+        document.removeEventListener("pointerdown", startMusicFromGesture);
+        document.removeEventListener("keydown", startMusicFromGesture);
+        musicStartListenersAttached = false;
+      }
+
+      function startMusicFromGesture() {
+        removeMusicStartListeners();
+        if (musicUrl && music.paused) startMusic();
+      }
+
+      async function startMusic() {
+        if (!musicUrl || !music.paused) return;
+        try {
+          await music.play();
+          removeMusicStartListeners();
+          updateMusicToggle();
+          universeStatus.textContent = "";
+        } catch (error) {
+          if (error.name === "NotAllowedError") {
+            if (!musicStartListenersAttached) {
+              document.addEventListener("pointerdown", startMusicFromGesture);
+              document.addEventListener("keydown", startMusicFromGesture);
+              musicStartListenersAttached = true;
+            }
+            return;
+          }
+          showStatus("Không phát được nhạc: " + error.message);
+          universeStatus.textContent = "Không phát được nhạc: " + error.message;
+        }
+      }
+
+      async function readPublishedCard() {
+        if (!["http:", "https:"].includes(window.location.protocol))
+          return { available: false, state: null };
+        const response = await fetch("/api/card", { cache: "no-store" });
+        if (response.status === 404)
+          return { available: false, state: null };
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "Không tải được thiệp đã xuất bản.");
+        return { available: true, state: result.state };
+      }
+
+      async function uploadMediaFile(file, category, password) {
+        const { upload } = await import(
+          "https://esm.sh/@vercel/blob@2.9.0/client"
+        );
+        const safeName =
+          file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-100) || "media";
+        const blob = await upload(
+          `teacher-card/${category}/${Date.now()}-${safeName}`,
+          file,
+          {
+            access: "public",
+            handleUploadUrl: "/api/blob-upload",
+            clientPayload: password,
+            multipart: file.size > 4_000_000,
+          },
+        );
+        return blob.url;
+      }
+
+      function getEditorPassword() {
+        const password = window.prompt(
+          "Nhập mật khẩu quản trị để cập nhật website chính:",
+        );
+        if (!password) throw new Error("Chưa nhập mật khẩu quản trị.");
+        return password;
+      }
+
+      async function publishMediaItems(items, category, password) {
+        const publishedItems = new Array(items.length);
+        let nextIndex = 0;
+        const workerCount = Math.min(3, items.length);
+        await Promise.all(
+          Array.from({ length: workerCount }, async () => {
+            while (nextIndex < items.length) {
+              const index = nextIndex++;
+              const item = items[index];
+              if (!item.url)
+                item.url = await uploadMediaFile(
+                  item.file,
+                  category,
+                  password,
+                );
+              publishedItems[index] = {
+                name: item.name,
+                url: item.url,
+              };
+            }
+          }),
+        );
+        return publishedItems;
+      }
+
+      async function publishCard(settings) {
+        if (!cloudApiAvailable) return false;
+        const password = getEditorPassword();
+        const [letter, sphere] = await Promise.all([
+          publishMediaItems(letterPhotoItems, "letter", password),
+          publishMediaItems(spherePhotoItems, "sphere", password),
+        ]);
+        let music = null;
+        if (musicUrl) {
+          if (!musicRemoteUrl && musicFile)
+            musicRemoteUrl = await uploadMediaFile(
+              musicFile,
+              "music",
+              password,
+            );
+          if (!musicRemoteUrl)
+            throw new Error("Không tìm thấy tệp nhạc để xuất bản.");
+          music = { name: musicName, url: musicRemoteUrl };
+        }
+
+        await saveAssets();
+        const response = await fetch("/api/card", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + password,
+          },
+          body: JSON.stringify({
+            settings,
+            photos: { letter, sphere },
+            music,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok)
+          throw new Error(result.error || "Không thể cập nhật website chính.");
+        return result;
+      }
+
+      async function loadLocalAssets() {
+        const assets = await loadAssets();
+        const legacyPhotos =
+          assets.photos && Array.isArray(assets.photos.value)
+            ? assets.photos.value
+            : [];
+        letterPhotoItems = normalizePhotoItems(
+          assets.letterPhotos && Array.isArray(assets.letterPhotos.value)
+            ? assets.letterPhotos.value
+            : legacyPhotos,
+        ).slice(0, maxLetterPhotos);
+        spherePhotoItems = normalizePhotoItems(
+          assets.spherePhotos && Array.isArray(assets.spherePhotos.value)
+            ? assets.spherePhotos.value
+            : [],
+        );
+        if (
+          assets.music &&
+          (assets.music.value instanceof Blob || assets.music.url)
+        )
+          setMusic(
+            assets.music.value instanceof Blob ? assets.music.value : null,
+            assets.music.name || "Nhạc đã lưu",
+            assets.music.url || "",
+          );
+        else setMusic(null, "");
+      }
+
+      async function initializeCard() {
+        let published;
+        try {
+          published = await readPublishedCard();
+          cloudApiAvailable = published.available;
+        } catch (error) {
+          cloudApiAvailable = false;
+          console.error("Could not load the published card:", error);
+          if (ownerEditMode)
+            showStatus("Chưa tải được bản online: " + error.message);
+        }
+
+        if (published && published.state) {
+          const state = published.state;
+          applySettings(state.settings);
+          letterPhotoItems = normalizePhotoItems(state.photos.letter).slice(
+            0,
+            maxLetterPhotos,
+          );
+          spherePhotoItems = normalizePhotoItems(state.photos.sphere);
+          if (state.music)
+            setMusic(null, state.music.name, state.music.url);
+          else setMusic(null, "");
+        } else {
+          await loadLocalAssets();
+          if (ownerEditMode && !cloudApiAvailable)
+            showStatus(
+              "Bản này chỉ lưu trên trình duyệt; hãy triển khai API Vercel để cập nhật website chính.",
+            );
+          else if (ownerEditMode)
+            showStatus(
+              "Chưa có bản online. Nhấn “Lưu thay đổi” để xuất bản thiệp này.",
+            );
+        }
+        renderLetterPhotos();
+        renderSpherePhotos();
       }
 
       function updateMemoryWorldTransform() {
@@ -1610,12 +1853,12 @@
 
       function renderMemoryCards() {
         releaseUniversePhotoUrls();
-        const photos = spherePhotoFiles;
+        const photos = spherePhotoItems;
 
         if (photos.length) {
-          photos.forEach((file, index) => {
-            const url = URL.createObjectURL(file);
-            universePhotoUrls.push(url);
+          photos.forEach((photo, index) => {
+            const url = photo.url || URL.createObjectURL(photo.file);
+            if (!photo.url) universePhotoUrls.push(url);
             const card = document.createElement("button");
             card.className = "memory-card";
             card.type = "button";
@@ -1761,7 +2004,7 @@
           if (!universe.classList.contains("open")) return;
           const elapsed = Math.min(now - universeLastFrame, 50);
           universeLastFrame = now;
-          if (!reducedMotionQuery.matches) rotationY += elapsed * 0.00015;
+          if (!reducedMotionQuery.matches) rotationY += elapsed * 0.0004;
           updateMemoryWorldTransform();
           drawUniverseBackground(context, canvas, stars, petals, now);
           if (!reducedMotionQuery.matches)
@@ -1909,21 +2152,15 @@
           return;
         }
         if (music.paused) {
-          try {
-            await music.play();
-            musicToggle.textContent = "♫ Tắt nhạc";
-            musicToggle.setAttribute("aria-pressed", "true");
-            universeStatus.textContent = "";
-          } catch (error) {
-            universeStatus.textContent =
-              "Không phát được nhạc: " + error.message;
-          }
+          await startMusic();
         } else {
+          removeMusicStartListeners();
           music.pause();
-          musicToggle.textContent = "♫ Bật nhạc";
-          musicToggle.setAttribute("aria-pressed", "false");
+          updateMusicToggle();
         }
       });
+      music.addEventListener("play", updateMusicToggle);
+      music.addEventListener("pause", updateMusicToggle);
       document
         .getElementById("editToggle")
         .addEventListener("click", (event) => {
@@ -1952,7 +2189,13 @@
           ? Math.max(0, maxFiles - destination.length)
           : files.length;
         const selectedFiles = files.slice(0, remainingSlots);
-        destination.push(...selectedFiles);
+        destination.push(
+          ...selectedFiles.map((file) => ({
+            file,
+            url: "",
+            name: file.name,
+          })),
+        );
         input.value = "";
         render();
         if (files.length > selectedFiles.length) {
@@ -1978,7 +2221,7 @@
       letterPhotoInput.addEventListener("change", () => {
         addSelectedPhotos(
           letterPhotoInput,
-          letterPhotoFiles,
+          letterPhotoItems,
           renderLetterPhotos,
           maxLetterPhotos,
         );
@@ -1986,7 +2229,7 @@
       spherePhotoInput.addEventListener("change", () => {
         addSelectedPhotos(
           spherePhotoInput,
-          spherePhotoFiles,
+          spherePhotoItems,
           renderSpherePhotos,
         );
         if (universe.classList.contains("open")) renderMemoryCards();
@@ -2015,16 +2258,33 @@
             editorForm.elements.namedItem(key).value.trim(),
           ]),
         );
+        let savedLocally = false;
         try {
           await saveAssets();
           localStorage.setItem(
             "teacher-card-settings-v1",
             JSON.stringify(settings),
           );
+          savedLocally = true;
           applySettings(settings);
-          showStatus("Đã lưu nội dung, ảnh và nhạc trên trình duyệt này.");
+          if (!cloudApiAvailable) {
+            showStatus(
+              "Đã lưu trên trình duyệt này; chưa cập nhật website chính vì API online chưa sẵn sàng.",
+            );
+            return;
+          }
+          showStatus("Đang tải ảnh/nhạc và cập nhật website chính...");
+          const result = await publishCard(settings);
+          showStatus(
+            result.cleanupWarning ||
+              "Đã lưu và cập nhật thiệp trên website chính.",
+          );
         } catch (error) {
-          showStatus("Không thể lưu thay đổi: " + error.message);
+          showStatus(
+            (savedLocally
+              ? "Đã lưu trên trình duyệt nhưng chưa cập nhật website chính: "
+              : "Không thể lưu thay đổi: ") + error.message,
+          );
         }
       });
       document
@@ -2036,49 +2296,43 @@
             )
           )
             return;
+          let savedLocally = false;
           try {
-            letterPhotoFiles = [];
-            spherePhotoFiles = [];
+            letterPhotoItems = [];
+            spherePhotoItems = [];
             setMusic(null, "");
             await saveAssets();
             localStorage.removeItem("teacher-card-settings-v1");
+            savedLocally = true;
             applySettings({ ...defaults });
             renderLetterPhotos();
             renderSpherePhotos();
-            showStatus("Đã khôi phục nội dung mặc định.");
+            if (cloudApiAvailable) {
+              const result = await publishCard({ ...defaults });
+              showStatus(
+                result.cleanupWarning ||
+                  "Đã khôi phục và cập nhật thiệp trên website chính.",
+              );
+            } else {
+              showStatus(
+                "Đã khôi phục trên trình duyệt này; chưa cập nhật website chính vì API online chưa sẵn sàng.",
+              );
+            }
           } catch (error) {
-            showStatus("Không thể khôi phục: " + error.message);
+            showStatus(
+              (savedLocally
+                ? "Đã khôi phục trên trình duyệt nhưng chưa cập nhật website chính: "
+                : "Không thể khôi phục: ") + error.message,
+            );
           }
         });
       applySettings(readSettings());
-      loadAssets()
-        .then((assets) => {
-          const legacyPhotos =
-            assets.photos && Array.isArray(assets.photos.value)
-              ? assets.photos.value
-              : [];
-          letterPhotoFiles = (
-            assets.letterPhotos && Array.isArray(assets.letterPhotos.value)
-              ? assets.letterPhotos.value
-              : legacyPhotos
-          ).slice(0, maxLetterPhotos);
-          spherePhotoFiles =
-            assets.spherePhotos && Array.isArray(assets.spherePhotos.value)
-              ? assets.spherePhotos.value
-              : [];
-          renderLetterPhotos();
-          renderSpherePhotos();
-          if (assets.music && assets.music.value instanceof Blob)
-            setMusic(assets.music.value, assets.music.name || "Nhạc đã lưu");
-          else
-            document.getElementById("musicName").textContent =
-              "Chưa chọn nhạc.";
-        })
-        .catch((error) =>
-          showStatus(
-            "Không tải được nội dung đa phương tiện: " + error.message,
-          ),
-        );
+      initializeCard().catch((error) => {
+        console.error("Could not initialize the card:", error);
+        showStatus("Không tải được nội dung thiệp: " + error.message);
+        renderLetterPhotos();
+        renderSpherePhotos();
+      });
 
       function makeHearts() {
         for (let i = 0; i < 28; i++) {
