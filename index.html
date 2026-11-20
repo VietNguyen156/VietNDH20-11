@@ -95,6 +95,11 @@
         margin: -17px 0 0;
         color: #9d7778;
         font-size: 14px;
+        transition: opacity 0.18s ease;
+      }
+      body:not(.card-ready) .hint {
+        opacity: 0;
+        visibility: hidden;
       }
       .letter-wrap {
         position: absolute;
@@ -2447,7 +2452,7 @@
         showStatus("Không tải được nội dung thiệp: " + error.message);
         renderLetterPhotos();
         renderSpherePhotos();
-      });
+      }).finally(() => document.body.classList.add("card-ready"));
 
       function makeHearts() {
         for (let i = 0; i < 28; i++) {
