@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f8e5e0">
+<title>Gửi cô một bó hoa</title>
+<style>
+:root{--paper:#f8e5e0;--rose:#bd5d6b;--deep:#914454;--ink:#59464a;--cream:#fffaf5}
+*{box-sizing:border-box}html,body{width:100%;min-height:100%;margin:0}
+body{min-height:100svh;overflow:hidden;color:var(--ink);background:var(--paper);font-family:"Segoe UI",Tahoma,Arial,sans-serif;letter-spacing:normal;word-spacing:normal}
+button{font:inherit}.scene{position:relative;display:grid;place-items:center;min-height:100svh;isolation:isolate;padding:32px 20px}
+.date{position:absolute;top:18px;left:18px;z-index:2;padding:9px 13px;border:1px solid #fff9;border-radius:999px;color:#79565a;background:#fff8f2a8;font-size:13px;letter-spacing:.08em}
+.start{display:grid;justify-items:center;gap:24px;border:0;padding:0;color:inherit;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:opacity .45s,transform .55s}
+.bouquet{width:min(260px,58vw);filter:drop-shadow(0 13px 10px #9f5e5524);transform-origin:50% 88%;animation:float 3.3s ease-in-out infinite;transition:transform .35s,filter .35s}
+.start:hover .bouquet,.start:focus-visible .bouquet{transform:translateY(-7px) rotate(-2deg) scale(1.035);filter:drop-shadow(0 18px 13px #9f5e5533)}
+.prompt{margin:0;color:var(--rose);font-size:clamp(25px,5vw,38px);font-weight:700;text-align:center;animation:breathe 2.4s ease-in-out infinite}
+.hint{margin:-17px 0 0;color:#9d7778;font-size:14px}
+.letter-wrap{position:absolute;inset:0;display:grid;place-items:center;padding:24px;opacity:0;visibility:hidden;transform:translateY(16px) scale(.98);transition:opacity .65s,transform .65s,visibility .65s}
+.scene.open .letter-wrap{opacity:1;visibility:visible;transform:translateY(0) scale(1)}
+.scene.open .letter{animation:letter-arrive .9s cubic-bezier(.2,.8,.2,1) both}
+.scene:after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(circle at 20% 18%,#fff7 0 1px,transparent 2px),radial-gradient(circle at 80% 24%,#fff8 0 1px,transparent 2px),radial-gradient(circle at 70% 80%,#fff8 0 1px,transparent 2px);background-size:110px 120px,160px 180px,130px 150px;animation:twinkle 4s ease-in-out infinite alternate}
+.scene.open .start{opacity:0;transform:translateY(-20px) scale(.9);pointer-events:none}
+.letter{position:relative;width:min(600px,100%);max-height:calc(100svh - 110px);overflow:auto;padding:clamp(27px,6vw,54px);border:1px solid #e9c8bd;border-radius:8px 8px 22px 8px;background:linear-gradient(90deg,transparent 0 34px,#f3d8d0 34px 35px,transparent 35px),repeating-linear-gradient(transparent 0 33px,#ecd9d2 34px,transparent 35px),var(--cream);box-shadow:0 25px 70px #8f4f492e,0 3px 8px #8f4f4918}
+.letter:before{content:"✿";position:absolute;top:12px;right:19px;color:#d58b91;font-size:27px;transform:rotate(15deg)}
+.eyebrow{margin:0 0 18px;color:var(--rose);font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}
+h1{margin:0 0 22px;color:var(--deep);font-family:Georgia,"Times New Roman",serif;font-size:clamp(29px,7vw,45px);font-weight:500;line-height:1.12}
+.greeting{margin:0 0 14px;color:#76585b;font-size:18px;font-weight:700}
+.message{margin:0;color:#634f50;font-family:"Segoe UI",Arial,sans-serif;font-size:clamp(16px,3.6vw,18px);line-height:1.9;white-space:pre-line}
+.signature{margin:22px 0 0;color:var(--deep);font-family:"Segoe UI",Arial,sans-serif;font-size:19px;font-style:italic;text-align:right}
+.actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:28px}
+.again{border:1px solid #d99ba1;border-radius:999px;padding:11px 19px;color:#8c4653;background:#fff9f5;cursor:pointer;transition:background .2s,transform .2s}
+.again:hover{background:#fbe8e3;transform:translateY(-2px)}
+.heart,.petal{position:absolute;z-index:-1;bottom:-30px;opacity:0;pointer-events:none;animation:rise var(--duration,6s) linear forwards;animation-delay:var(--delay,0s)}
+.heart{color:#d77d88}.petal{color:#f4aab2;font-size:22px}
+.top-actions{position:absolute;top:18px;right:18px;z-index:4;display:flex;gap:9px}
+.top-actions[hidden]{display:none}
+.top-action{border:1px solid #e9c4bf;border-radius:999px;padding:10px 15px;color:#825159;background:#fffaf4e8;box-shadow:0 5px 18px #895d5110;font-size:14px;cursor:pointer;transition:transform .2s,background .2s}
+.top-action:hover{transform:translateY(-2px);background:#fff}
+.editor-panel{position:absolute;inset:70px 18px auto auto;z-index:5;width:min(430px,calc(100% - 36px));max-height:calc(100svh - 150px);overflow:auto;padding:22px;border:1px solid #e9c4bf;border-radius:18px;background:#fffaf5;box-shadow:0 18px 55px #653b3b38}
+.editor-panel[hidden]{display:none}
+.editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.editor-head h2{margin:0;color:var(--deep);font-family:Georgia,"Times New Roman",serif;font-size:24px}
+.editor-close{border:0;padding:7px;color:#825159;background:transparent;font-size:22px;cursor:pointer}
+.editor-form{display:grid;gap:12px}
+.editor-form label{display:grid;gap:5px;color:#76585b;font-size:13px;font-weight:700}
+.editor-form input[type="text"],.editor-form textarea{width:100%;border:1px solid #e5c7c1;border-radius:9px;padding:10px 11px;color:#59464a;background:#fff;font:inherit;font-size:14px}
+.editor-form textarea{min-height:84px;resize:vertical;line-height:1.55}
+.editor-form input:focus,.editor-form textarea:focus{outline:2px solid #d99ba1;outline-offset:1px}
+.editor-file{display:grid;gap:6px;border:1px dashed #d9aaa6;border-radius:10px;padding:11px;background:#fffdfb}
+.editor-file input{max-width:100%;font-size:13px}
+.editor-file small,.editor-note{color:#98797a;font-size:12px;font-weight:400;line-height:1.5}
+.editor-note{margin:0}
+.photo-editor-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(75px,1fr));gap:8px}
+.photo-editor-section{display:grid;gap:8px}
+.photo-editor-section h3{margin:4px 0 0;color:#8c5961;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:15px}
+.photo-editor-item{position:relative}
+.photo-editor-item img{width:100%;height:78px;object-fit:cover;border:2px solid #fff;border-radius:8px;box-shadow:0 2px 8px #69494a20}
+.photo-remove{position:absolute;top:3px;right:3px;width:24px;height:24px;border:0;border-radius:50%;color:#fff;background:#8c4653d9;font-size:16px;cursor:pointer}
+.editor-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-top:3px}
+.save-button,.reset-button{border:1px solid #d99ba1;border-radius:999px;padding:10px 15px;color:#fff;background:#a85562;font:inherit;font-size:14px;cursor:pointer}
+.reset-button{color:#8c4653;background:#fff9f5}
+.editor-status{min-height:18px;margin:0;color:#7a5960;font-size:13px}
+.photo-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:9px;margin:20px 0 4px}
+.photo-gallery:empty{display:none}.photo-gallery img{width:100%;height:120px;object-fit:cover;border:4px solid #fff;border-radius:9px;box-shadow:0 4px 13px #69494a1c;animation:photo-pop .55s cubic-bezier(.2,.8,.2,1) both}
+.universe{position:absolute;inset:0;z-index:20;overflow:hidden;opacity:0;visibility:hidden;background:radial-gradient(ellipse at 50% 45%,#fff5ed 0,#f6dfdd 35%,#d7e4d7 73%,#c6d6cf 100%);transition:opacity .75s,visibility .75s}
+.universe.open{opacity:1;visibility:visible}
+.universe-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.universe-stage{position:absolute;inset:0 0 76px;display:grid;place-items:center;perspective:1100px;touch-action:none;cursor:grab;transform:scale(.88);transition:transform .75s cubic-bezier(.2,.8,.2,1)}
+.universe.open .universe-stage{transform:scale(1)}
+.universe-stage:active{cursor:grabbing}
+.memory-world{position:relative;width:min(78vw,72svh,620px);aspect-ratio:1;transform-style:preserve-3d;will-change:transform}
+.memory-sphere{position:absolute;left:50%;top:50%;width:56%;aspect-ratio:1;transform:translate(-50%,-50%);border:1px solid #fff9;border-radius:50%;background:radial-gradient(circle at 34% 27%,#fff6df 0 4%,#f9d5d7 19%,#e8abbc 39%,#b4cbb2 62%,#7eaa91 78%,#507c6d 100%);box-shadow:inset -22px -20px 40px #395c4a55,inset 12px 10px 30px #fff9,0 0 48px #f4c18c77,0 0 100px #f5d2d988;transform-style:preserve-3d}
+.memory-sphere:before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(ellipse at 30% 42%,#fff7 0 1%,transparent 3%),radial-gradient(ellipse at 70% 59%,#bd718854 0 7%,transparent 8%),radial-gradient(ellipse at 42% 76%,#fff6 0 2%,transparent 3%);box-shadow:inset -22px -10px 30px #395c4a45}
+.memory-sphere-label{position:absolute;left:50%;top:50%;width:72%;transform:translate(-50%,-50%);color:#fffaf0;text-align:center;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:clamp(15px,2.4vw,25px);line-height:1.35;letter-spacing:normal;word-spacing:normal;text-shadow:0 2px 12px #82554c99}
+.memory-orbit{position:absolute;left:50%;top:50%;width:94%;height:34%;border:1px solid #c3955d80;border-radius:50%;transform-style:preserve-3d;pointer-events:none}
+.memory-orbit--one{transform:translate(-50%,-50%) rotateX(68deg) rotateZ(-22deg)}
+.memory-orbit--two{width:108%;height:48%;border-color:#fffdf0a8;transform:translate(-50%,-50%) rotateX(72deg) rotateZ(38deg) translateZ(8px)}
+.memory-cards{position:absolute;inset:0;transform-style:preserve-3d}
+.memory-card{position:absolute;left:50%;top:50%;width:clamp(72px,10vw,112px);min-height:100px;padding:5px 5px 19px;border:1px solid #dfcfb4;border-radius:3px;background:linear-gradient(145deg,#fffefa,#f8f0df);box-shadow:0 8px 22px #5946403d;backface-visibility:hidden;transform-style:preserve-3d}
+button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
+.memory-card img{display:block;width:100%;height:clamp(62px,8vw,88px);object-fit:contain;background:#f7eee7}
+.memory-card-caption{position:absolute;right:4px;bottom:3px;left:4px;overflow:hidden;color:#896d5b;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:10px;letter-spacing:normal;word-spacing:normal;text-align:center;text-overflow:ellipsis;white-space:nowrap}
+.memory-card--decor{display:grid;place-items:center;color:#bd7b79;font-size:clamp(22px,3vw,34px);text-align:center}
+.memory-card--decor figcaption{font-size:9px}
+.universe-title{position:absolute;right:12px;bottom:26px;left:12px;z-index:1;margin:0;color:#754d4e;text-align:center;font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:clamp(18px,4vw,32px);font-weight:500;letter-spacing:normal;word-spacing:normal;text-shadow:0 1px #fff9}
+.universe-status{position:absolute;right:12px;bottom:72px;left:12px;z-index:2;margin:0;color:#754d4e;text-align:center;font-size:13px;text-shadow:0 1px #fff9}
+.universe-status:empty{display:none}
+.universe-controls{position:absolute;top:16px;right:16px;left:16px;z-index:2;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+.universe-controls-group{display:flex;gap:8px}
+.universe-control{min-width:42px;min-height:42px;border:1px solid #c6978eaa;border-radius:999px;padding:9px 14px;color:#744f50;background:#fffaf0e8;box-shadow:0 4px 14px #6245431a;font-size:14px;cursor:pointer;pointer-events:auto;backdrop-filter:blur(8px)}
+.universe-control:hover{background:#fff;transform:translateY(-1px)}
+.universe-control:disabled{opacity:.55;cursor:not-allowed}
+.photo-viewer{position:absolute;inset:0;z-index:3;display:grid;place-items:center;padding:24px;background:#44363bd9;backdrop-filter:blur(6px)}
+.photo-viewer[hidden]{display:none}
+.photo-viewer img{max-width:min(90vw,900px);max-height:82svh;object-fit:contain;border:10px solid #fffaf0;border-bottom-width:34px;border-radius:3px;box-shadow:0 24px 80px #0008}
+.photo-viewer-close{position:absolute;top:18px;right:18px;width:46px;height:46px;border:1px solid #fff9;border-radius:50%;color:#fff;background:#493c40a6;font-size:25px;cursor:pointer}
+@keyframes universe-arrive{from{transform:scale(.78);opacity:.2}to{transform:scale(1);opacity:1}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-9px) rotate(1deg)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.72}}
+@keyframes rise{0%{opacity:0;transform:translateY(0) rotate(0) scale(.7)}15%{opacity:.75}100%{opacity:0;transform:translateY(-110svh) rotate(35deg) scale(1.25)}}
+@keyframes letter-arrive{0%{opacity:0;transform:translateY(35px) scale(.96);filter:blur(4px)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+@keyframes photo-pop{0%{opacity:0;transform:scale(.85) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes twinkle{from{opacity:.35;transform:translateY(0)}to{opacity:.85;transform:translateY(-5px)}}
+@media(max-width:480px){.date{top:13px;left:13px;font-size:11px}.start{gap:20px}.bouquet{width:min(230px,60vw)}.letter{padding:35px 25px 28px 43px}.letter-wrap{padding:15px}.message{line-height:1.75}}
+@media(max-width:480px){.top-actions{top:12px;right:12px}.top-action{padding:9px 12px;font-size:13px}.editor-panel{inset:60px 12px auto;width:calc(100% - 24px);max-height:calc(100svh - 120px);padding:17px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}}
+@media(max-width:480px){.memory-world{width:min(92vw,64svh)}.memory-card{width:clamp(66px,19vw,90px);min-height:88px;padding:4px 4px 17px}.memory-card img{height:clamp(55px,16vw,72px)}.universe-controls{top:10px;right:10px;left:10px}.universe-control{min-width:38px;min-height:38px;padding:8px 10px;font-size:12px}.universe-title{bottom:18px}}
+@media(prefers-reduced-motion:reduce){.universe,.universe-stage,.memory-world,.universe-control{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="scene" id="scene">
+  <div class="date" aria-label="Ngày Nhà giáo Việt Nam">20 · 11</div>
+  <div class="top-actions" id="ownerActions" hidden>
+    <button class="top-action" id="editToggle" type="button" aria-expanded="false" aria-controls="editorPanel">✎ Chỉnh nội dung</button>
+  </div>
+  <button class="start" id="openLetter" type="button" aria-label="Chạm vào bó hoa để mở thư">
+    <svg class="bouquet" viewBox="0 0 260 290" role="img" aria-label="Bó hoa hồng được gói giấy hồng">
+      <defs>
+        <linearGradient id="wrap" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#fff2ed"/><stop offset=".55" stop-color="#efb8bd"/><stop offset="1" stop-color="#d98a98"/></linearGradient>
+        <linearGradient id="paper" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#fff9f5"/><stop offset="1" stop-color="#f5c7c8"/></linearGradient>
+        <g id="rose"><path d="M0-15c8-12 23-3 17 7 12-1 14 14 2 17 4 10-9 18-17 9-9 9-22 1-17-9-12-3-10-18 2-17-6-10 9-19 17-7Z" fill="#e77c87" stroke="#b85265" stroke-width="1.4"/><path d="M0-10c7 1 9 7 3 10 6 5 1 12-4 9-8 2-12-7-5-11-2-5 1-8 6-8Z" fill="#c84960"/><path d="M-8-11c3-4 8-5 12-2" fill="none" stroke="#f6b7b8" stroke-width="2" stroke-linecap="round"/></g>
+        <g id="daisy"><g fill="#fff8e9" stroke="#eac7b9" stroke-width=".7"><ellipse cy="-10" rx="3.8" ry="7"/><ellipse cy="10" rx="3.8" ry="7"/><ellipse cx="-10" rx="7" ry="3.8"/><ellipse cx="10" rx="7" ry="3.8"/><ellipse cx="-7" cy="-7" rx="3.5" ry="6" transform="rotate(-45 -7 -7)"/><ellipse cx="7" cy="7" rx="3.5" ry="6" transform="rotate(-45 7 7)"/><ellipse cx="7" cy="-7" rx="3.5" ry="6" transform="rotate(45 7 -7)"/><ellipse cx="-7" cy="7" rx="3.5" ry="6" transform="rotate(45 -7 7)"/></g><circle r="4" fill="#f3c66f"/></g>
+      </defs>
+      <g fill="none" stroke="#54856a" stroke-width="3" stroke-linecap="round"><path d="M128 221 102 82M130 220 150 78M132 220 76 113M133 220 181 112M132 220 124 61M130 220 202 133M129 220 59 141"/></g>
+      <g fill="#6e9c78" stroke="#4f7c62" stroke-width="1"><path d="M106 166c-19-24-31-18-23-7 7 9 15 10 23 7ZM150 159c21-23 31-16 22-6-8 8-15 8-22 6ZM91 185c-22-14-30-5-19 2 8 5 14 4 19-2ZM164 184c20-17 29-9 19-1-8 6-13 5-19 1Z"/></g>
+      <use href="#rose" transform="translate(104 83) scale(1.05)"/><use href="#rose" transform="translate(150 79) scale(.93)"/>
+      <use href="#rose" transform="translate(76 113) scale(.9)"/><use href="#rose" transform="translate(181 111) scale(1.03)"/>
+      <use href="#rose" transform="translate(124 61) scale(.85)"/><use href="#rose" transform="translate(202 133) scale(.78)"/><use href="#rose" transform="translate(59 141) scale(.76)"/>
+      <use href="#daisy" transform="translate(88 73) scale(.55)"/><use href="#daisy" transform="translate(170 91) scale(.55)"/><use href="#daisy" transform="translate(137 111) scale(.48)"/>
+      <path d="M41 117 129 174 73 239 27 141Z" fill="url(#paper)" stroke="#cf8895" stroke-width="1.5"/><path d="M217 116 129 174 188 239 232 139Z" fill="url(#wrap)" stroke="#c57887" stroke-width="1.5"/><path d="M41 117 129 174 217 116 195 201 130 229 65 201Z" fill="url(#wrap)" stroke="#c57887" stroke-width="1.5"/>
+      <path d="M45 128 120 178M56 149 107 207M214 128 138 178M203 150 153 208" stroke="#fff4ef" stroke-width="3" opacity=".75"/>
+      <path d="M65 201 130 229 195 201 181 255 130 268 78 253Z" fill="#f0bdc2" stroke="#c57887" stroke-width="1.5"/><path d="M130 229v39M104 238l-9 28M156 238l10 28" stroke="#fff4ef" stroke-width="2" opacity=".8"/>
+      <path d="M129 218c-24-22-40 1-22 12 8 5 17-2 22-12Zm2 0c24-22 40 1 22 12-8 5-17-2-22-12Z" fill="#f8d9d2" stroke="#bc7380" stroke-width="1.5"/><circle cx="130" cy="219" r="5" fill="#be6575"/>
+      <path d="M100 165 158 166 155 191 103 188Z" fill="#fff6ed" stroke="#ca8790" transform="rotate(-5 130 178)"/><text x="130" y="183" text-anchor="middle" fill="#b65d6a" font-size="11" font-family="Georgia,serif" font-style="italic">20 · 11</text>
+    </svg>
+    <p class="prompt">Chạm nhẹ vào hoa</p>
+    <p class="hint">Có một lời nhắn nhỏ dành tặng cô</p>
+  </button>
+  <section class="letter-wrap" aria-hidden="true" id="letterWrap">
+    <article class="letter" aria-labelledby="title">
+      <p class="eyebrow" id="eyebrow">Một lời cảm ơn gửi cô</p>
+      <h1 id="title">Chúc mừng ngày Nhà giáo Việt Nam</h1>
+      <p class="greeting" id="greeting">Kính gửi cô giáo thân yêu,</p>
+      <p class="message" id="message"></p>
+      <p class="signature" id="signature"></p>
+      <div class="photo-gallery" id="photoGallery" aria-label="Ảnh kỷ niệm đã thêm"></div>
+      <div class="actions">
+        <button class="again" id="closeLetter" type="button">Gửi cô một bó hoa nữa</button>
+        <button class="again" id="openUniverse" type="button">Khám phá tinh cầu kỷ niệm</button>
+      </div>
+    </article>
+  </section>
+  <aside class="editor-panel" id="editorPanel" aria-label="Chỉnh sửa thiệp" hidden>
+    <div class="editor-head">
+      <h2>Chỉnh sửa thiệp</h2>
+      <button class="editor-close" id="editorClose" type="button" aria-label="Đóng phần chỉnh sửa">×</button>
+    </div>
+    <form class="editor-form" id="editorForm">
+      <label>Ngày hiển thị<input type="text" name="date" maxlength="40"></label>
+      <label>Lời mời trên màn hình<input type="text" name="prompt" maxlength="100"></label>
+      <label>Dòng gợi ý<input type="text" name="hint" maxlength="140"></label>
+      <label>Dòng tiêu đề nhỏ<input type="text" name="eyebrow" maxlength="100"></label>
+      <label>Tiêu đề thư<input type="text" name="title" maxlength="120"></label>
+      <label>Lời chào<input type="text" name="greeting" maxlength="140"></label>
+      <label>Nội dung lời nhắn<textarea name="message" maxlength="3000"></textarea></label>
+      <label>Chữ ký<textarea name="signature" maxlength="240"></textarea></label>
+      <section class="photo-editor-section" aria-labelledby="letterPhotoHeading">
+        <h3 id="letterPhotoHeading">Ảnh trên thiệp</h3>
+        <label class="editor-file">Thêm ảnh vào thiệp
+          <input id="letterPhotoInput" type="file" accept="image/*" multiple>
+          <small>Ảnh hiển thị trong nội dung lá thư.</small>
+        </label>
+        <div class="photo-editor-list" id="letterPhotoEditorList"></div>
+      </section>
+      <section class="photo-editor-section" aria-labelledby="spherePhotoHeading">
+        <h3 id="spherePhotoHeading">Ảnh trên tinh cầu</h3>
+        <label class="editor-file">Thêm ảnh vào tinh cầu
+          <input id="spherePhotoInput" type="file" accept="image/*" multiple>
+          <small>Ảnh hiển thị quanh quả cầu; có thể thêm nhiều ảnh.</small>
+        </label>
+        <div class="photo-editor-list" id="spherePhotoEditorList"></div>
+      </section>
+      <label class="editor-file">Chọn nhạc nền
+        <input id="musicInput" type="file" accept="audio/*">
+        <small id="musicName">Chưa chọn nhạc.</small>
+      </label>
+      <button class="reset-button" id="removeMusic" type="button">Bỏ nhạc</button>
+      <p class="editor-note">Các thay đổi chỉ được lưu trên thiết bị/trình duyệt này, không đồng bộ cho khách truy cập khác.</p>
+      <div class="editor-buttons">
+        <button class="save-button" type="submit">Lưu thay đổi</button>
+        <button class="reset-button" id="resetCard" type="button">Khôi phục mặc định</button>
+      </div>
+      <p class="editor-status" id="editorStatus" role="status" aria-live="polite"></p>
+    </form>
+  </aside>
+  <audio id="backgroundMusic" loop preload="none"></audio>
+  <section class="universe" id="universe" aria-hidden="true" aria-label="Cảnh vũ trụ">
+    <canvas class="universe-canvas" id="universeCanvas"></canvas>
+    <div class="universe-stage" id="universeStage" aria-label="Kéo để xoay tinh cầu, cuộn hoặc chụm để thu phóng">
+      <div class="memory-world" id="memoryWorld">
+        <div class="memory-orbit memory-orbit--one"></div>
+        <div class="memory-orbit memory-orbit--two"></div>
+        <div class="memory-sphere">
+          <span class="memory-sphere-label">Ước mơ<br>được thắp sáng<br>20 · 11</span>
+        </div>
+        <div class="memory-cards" id="memoryCards"></div>
+      </div>
+    </div>
+    <p class="universe-title">Cảm ơn cô vì đã thắp sáng những ước mơ</p>
+    <p class="universe-status" id="universeStatus" role="status" aria-live="polite"></p>
+    <div class="universe-controls">
+      <div class="universe-controls-group">
+        <button class="universe-control" id="closeUniverse" type="button">← Quay lại lá thư</button>
+      </div>
+      <div class="universe-controls-group">
+        <button class="universe-control" id="musicToggle" type="button" aria-pressed="false" disabled>♫ Chưa có nhạc</button>
+      </div>
+    </div>
+    <div class="photo-viewer" id="photoViewer" role="dialog" aria-modal="true" aria-label="Ảnh kỷ niệm" hidden>
+      <button class="photo-viewer-close" id="photoViewerClose" type="button" aria-label="Đóng ảnh">×</button>
+      <img id="photoViewerImage" alt="">
+    </div>
+  </section>
+</main>
+<script>
+  const defaults = {
+    date: '20 · 11',
+    prompt: 'Chạm nhẹ vào hoa',
+    hint: 'Có một lời nhắn nhỏ dành tặng cô',
+    eyebrow: 'Một lời cảm ơn gửi cô',
+    title: 'Chúc mừng ngày Nhà giáo Việt Nam',
+    greeting: 'Kính gửi cô giáo thân yêu,',
+    message: 'Nhân ngày 20/11, em xin gửi đến cô lời cảm ơn chân thành nhất. Cảm ơn cô vì sự tận tâm, kiên nhẫn và những bài học quý giá cô đã dành cho chúng em.\n\nChúc cô luôn mạnh khỏe, vui vẻ và giữ mãi ngọn lửa yêu nghề. Mong rằng mỗi ngày đến lớp đều mang đến cho cô thật nhiều niềm vui và những nụ cười ấm áp.',
+    signature: 'Thương mến,\nHọc trò của cô'
+  };
+  const scene = document.getElementById('scene');
+  const letterWrap = document.getElementById('letterWrap');
+  const editorPanel = document.getElementById('editorPanel');
+  const editorForm = document.getElementById('editorForm');
+  const editorStatus = document.getElementById('editorStatus');
+  const photoGallery = document.getElementById('photoGallery');
+  const letterPhotoEditorList = document.getElementById('letterPhotoEditorList');
+  const spherePhotoEditorList = document.getElementById('spherePhotoEditorList');
+  const letterPhotoInput = document.getElementById('letterPhotoInput');
+  const spherePhotoInput = document.getElementById('spherePhotoInput');
+  const musicInput = document.getElementById('musicInput');
+  const music = document.getElementById('backgroundMusic');
+  const musicToggle = document.getElementById('musicToggle');
+  const universeStatus = document.getElementById('universeStatus');
+  const ownerActions = document.getElementById('ownerActions');
+  const universe = document.getElementById('universe');
+  const universeStage = document.getElementById('universeStage');
+  const memoryWorld = document.getElementById('memoryWorld');
+  const memoryCards = document.getElementById('memoryCards');
+  const photoViewer = document.getElementById('photoViewer');
+  const photoViewerImage = document.getElementById('photoViewerImage');
+  const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const isLocalPreview = window.location.protocol === 'file:' ||
+    ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  const ownerEditMode = isLocalPreview || new URLSearchParams(window.location.search).get('edit') === '1';
+  let letterPhotoFiles = [];
+  let letterPhotoUrls = [];
+  let spherePhotoFiles = [];
+  let spherePhotoUrls = [];
+  let universePhotoUrls = [];
+  let musicFile = null;
+  let musicUrl = '';
+  let musicName = '';
+  let universeFrame = 0;
+  let universeLastFrame = 0;
+  let universeResizeHandler = null;
+  let rotationX = -8;
+  let rotationY = 0;
+  let zoomLevel = 1;
+  let lastPointer = null;
+  let pinchDistance = 0;
+  const activePointers = new Map();
+
+  ownerActions.hidden = !ownerEditMode;
+
+  function showStatus(message) {
+    editorStatus.textContent = message;
+  }
+
+  function applySettings(settings) {
+    document.querySelector('.date').textContent = settings.date;
+    document.querySelector('.date').setAttribute('aria-label', settings.date);
+    document.querySelector('.prompt').textContent = settings.prompt;
+    document.querySelector('.hint').textContent = settings.hint;
+    document.getElementById('eyebrow').textContent = settings.eyebrow;
+    document.getElementById('title').textContent = settings.title;
+    document.getElementById('greeting').textContent = settings.greeting;
+    document.getElementById('message').textContent = settings.message;
+    document.getElementById('signature').textContent = settings.signature;
+    for (const [name, value] of Object.entries(settings)) {
+      editorForm.elements.namedItem(name).value = value;
+    }
+  }
+
+  function readSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('teacher-card-settings-v1') || '{}');
+      return Object.fromEntries(Object.keys(defaults).map((key) => [
+        key,
+        typeof saved[key] === 'string' ? saved[key] : defaults[key]
+      ]));
+    } catch (error) {
+      showStatus('Không đọc được nội dung đã lưu. Bạn có thể nhập lại và lưu.');
+      return { ...defaults };
+    }
+  }
+
+  function openDatabase() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('Trình duyệt không hỗ trợ lưu ảnh và nhạc.'));
+        return;
+      }
+      const request = indexedDB.open('teacher-card-assets', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('assets', { keyPath: 'id' });
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Không mở được kho nội dung.'));
+    });
+  }
+
+  async function loadAssets() {
+    const database = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction('assets', 'readonly');
+      const request = transaction.objectStore('assets').getAll();
+      request.onsuccess = () => {
+        const assets = Object.fromEntries(request.result.map((asset) => [asset.id, asset]));
+        resolve(assets);
+      };
+      request.onerror = () => reject(request.error || new Error('Không tải được ảnh và nhạc đã lưu.'));
+      transaction.oncomplete = () => database.close();
+      transaction.onerror = () => database.close();
+    });
+  }
+
+  async function saveAssets() {
+    const database = await openDatabase();
+    return new Promise((resolve, reject) => {
+      const transaction = database.transaction('assets', 'readwrite');
+      const store = transaction.objectStore('assets');
+      store.put({ id: 'letterPhotos', value: letterPhotoFiles });
+      store.put({ id: 'spherePhotos', value: spherePhotoFiles });
+      store.delete('photos');
+      if (musicFile) store.put({ id: 'music', value: musicFile, name: musicName });
+      else store.delete('music');
+      transaction.oncomplete = () => {
+        database.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error || new Error('Không lưu được ảnh hoặc nhạc.'));
+      };
+      transaction.onabort = () => {
+        database.close();
+        reject(transaction.error || new Error('Việc lưu ảnh hoặc nhạc đã bị hủy.'));
+      };
+    });
+  }
+
+  function renderPhotoCollection(files, urls, editorList, gallery, label) {
+    urls.forEach((url) => URL.revokeObjectURL(url));
+    urls.length = 0;
+    editorList.replaceChildren();
+    if (gallery) gallery.replaceChildren();
+    files.forEach((file, index) => {
+      const url = URL.createObjectURL(file);
+      urls.push(url);
+      if (gallery) {
+        const image = document.createElement('img');
+        image.src = url;
+        image.alt = 'Ảnh kỷ niệm ' + (index + 1);
+        gallery.appendChild(image);
+      }
+      const item = document.createElement('div');
+      item.className = 'photo-editor-item';
+      const thumbnail = document.createElement('img');
+      thumbnail.src = url;
+      thumbnail.alt = label + ' ' + (index + 1);
+      const remove = document.createElement('button');
+      remove.className = 'photo-remove';
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', 'Xóa ' + label.toLowerCase() + ' ' + (index + 1));
+      remove.addEventListener('click', () => {
+        files.splice(index, 1);
+        renderPhotoCollection(files, urls, editorList, gallery, label);
+        if (files === spherePhotoFiles && universe.classList.contains('open')) renderMemoryCards();
+      });
+      item.append(thumbnail, remove);
+      editorList.appendChild(item);
+    });
+  }
+
+  function renderLetterPhotos() {
+    renderPhotoCollection(letterPhotoFiles, letterPhotoUrls, letterPhotoEditorList, photoGallery, 'Ảnh trên thiệp');
+  }
+
+  function renderSpherePhotos() {
+    renderPhotoCollection(spherePhotoFiles, spherePhotoUrls, spherePhotoEditorList, null, 'Ảnh trên tinh cầu');
+  }
+
+  function setMusic(file, name) {
+    if (musicUrl) URL.revokeObjectURL(musicUrl);
+    musicFile = file;
+    musicName = name || '';
+    musicUrl = file ? URL.createObjectURL(file) : '';
+    music.pause();
+    if (musicUrl) music.src = musicUrl;
+    else {
+      music.removeAttribute('src');
+      music.load();
+    }
+    document.getElementById('musicName').textContent = musicFile ? musicName : 'Chưa chọn nhạc.';
+    musicToggle.textContent = musicFile ? '♫ Bật nhạc' : '♫ Chưa có nhạc';
+    musicToggle.setAttribute('aria-pressed', 'false');
+    musicToggle.disabled = !musicFile;
+  }
+
+  function updateMemoryWorldTransform() {
+    memoryWorld.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg) scale(${zoomLevel})`;
+  }
+
+  function positionMemoryCards() {
+    const cards = Array.from(memoryCards.children);
+    if (!cards.length) return;
+    const radius = memoryWorld.clientWidth * 0.37;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+    cards.forEach((card, index) => {
+      const vertical = 1 - 2 * (index + 0.5) / cards.length;
+      const horizontalRadius = Math.sqrt(1 - vertical * vertical);
+      const angle = index * goldenAngle + Math.PI / 2;
+      const x = Math.cos(angle) * horizontalRadius;
+      const z = Math.sin(angle) * horizontalRadius;
+      const yaw = Math.atan2(x, z);
+      const pitch = Math.asin(vertical);
+      card.style.transform = `translate(-50%, -50%) translate3d(${x * radius}px, ${-vertical * radius}px, ${z * radius}px) rotateY(${yaw}rad) rotateX(${pitch}rad)`;
+    });
+  }
+
+  function closePhotoViewer() {
+    photoViewer.hidden = true;
+    photoViewerImage.removeAttribute('src');
+    photoViewerImage.alt = '';
+  }
+
+  function releaseUniversePhotoUrls() {
+    closePhotoViewer();
+    universePhotoUrls.forEach((url) => URL.revokeObjectURL(url));
+    universePhotoUrls = [];
+    memoryCards.replaceChildren();
+  }
+
+  function openPhotoViewer(url, alt) {
+    photoViewerImage.src = url;
+    photoViewerImage.alt = alt;
+    photoViewer.hidden = false;
+    document.getElementById('photoViewerClose').focus();
+  }
+
+  function renderMemoryCards() {
+    releaseUniversePhotoUrls();
+    const photos = spherePhotoFiles;
+
+    if (photos.length) {
+      photos.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        universePhotoUrls.push(url);
+        const card = document.createElement('button');
+        card.className = 'memory-card';
+        card.type = 'button';
+        card.setAttribute('aria-label', 'Mở ảnh kỷ niệm ' + (index + 1));
+        const image = document.createElement('img');
+        image.src = url;
+        image.alt = 'Kỷ niệm ' + (index + 1);
+        image.decoding = 'async';
+        const caption = document.createElement('span');
+        caption.className = 'memory-card-caption';
+        caption.textContent = 'Kỷ niệm ' + (index + 1);
+        card.append(image, caption);
+        card.addEventListener('click', () => openPhotoViewer(url, image.alt));
+        memoryCards.appendChild(card);
+      });
+    } else {
+      ['✿', '♡', '20 · 11', '❀', '♥', '✧', '❁', '✦', '🌷', '♡', '♧', '✿'].forEach((symbol) => {
+        const card = document.createElement('div');
+        card.className = 'memory-card memory-card--decor';
+        const icon = document.createElement('span');
+        icon.textContent = symbol;
+        const caption = document.createElement('span');
+        caption.className = 'memory-card-caption';
+        caption.textContent = 'Thương cô';
+        card.append(icon, caption);
+        memoryCards.appendChild(card);
+      });
+    }
+
+    positionMemoryCards();
+  }
+
+  function drawUniverseBackground(context, canvas, stars, petals, elapsed) {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    context.clearRect(0, 0, width, height);
+    const glow = context.createRadialGradient(width * 0.5, height * 0.46, 10, width * 0.5, height * 0.46, Math.max(width, height) * 0.65);
+    glow.addColorStop(0, 'rgba(255, 236, 206, .56)');
+    glow.addColorStop(.42, 'rgba(241, 195, 207, .26)');
+    glow.addColorStop(.78, 'rgba(159, 192, 166, .13)');
+    glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    context.fillStyle = glow;
+    context.fillRect(0, 0, width, height);
+
+    stars.forEach((star) => {
+      const twinkle = reducedMotionQuery.matches ? 0.7 : 0.35 + (Math.sin(elapsed * 0.0015 + star.phase) + 1) * 0.3;
+      context.globalAlpha = twinkle;
+      context.fillStyle = star.gold ? '#b79861' : '#fffdf5';
+      context.beginPath();
+      context.arc(star.x * width, star.y * height, star.size, 0, Math.PI * 2);
+      context.fill();
+    });
+    context.globalAlpha = 1;
+
+    petals.forEach((petal) => {
+      const progress = reducedMotionQuery.matches ? 0.35 : (elapsed * petal.speed + petal.offset) % 1;
+      const x = petal.x * width + Math.sin(elapsed * 0.0004 + petal.phase) * 18;
+      const y = ((petal.y + progress) % 1) * height;
+      context.save();
+      context.translate(x, y);
+      context.rotate(elapsed * 0.00025 + petal.phase);
+      context.fillStyle = 'rgba(205, 126, 145, .38)';
+      context.beginPath();
+      context.ellipse(0, 0, 3.2, 5.5, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    });
+  }
+
+  function startUniverse() {
+    const canvas = document.getElementById('universeCanvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      showStatus('Không thể khởi tạo hiệu ứng tinh cầu trên trình duyệt này.');
+      return;
+    }
+
+    const stars = Array.from({ length: 150 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      size: Math.random() * 1.5 + 0.4,
+      phase: Math.random() * Math.PI * 2,
+      gold: Math.random() > 0.72
+    }));
+    const petals = Array.from({ length: 12 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      speed: Math.random() * 0.035 + 0.01,
+      offset: Math.random(),
+      phase: Math.random() * Math.PI * 2
+    }));
+    const resize = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.round(canvas.clientWidth * ratio);
+      canvas.height = Math.round(canvas.clientHeight * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      positionMemoryCards();
+      drawUniverseBackground(context, canvas, stars, petals, performance.now());
+    };
+    if (universeResizeHandler) window.removeEventListener('resize', universeResizeHandler);
+    universeResizeHandler = resize;
+    window.addEventListener('resize', universeResizeHandler);
+    resize();
+
+    const animate = (now) => {
+      if (!universe.classList.contains('open')) return;
+      const elapsed = Math.min(now - universeLastFrame, 50);
+      universeLastFrame = now;
+      if (!reducedMotionQuery.matches) rotationY += elapsed * 0.006;
+      updateMemoryWorldTransform();
+      drawUniverseBackground(context, canvas, stars, petals, now);
+      if (!reducedMotionQuery.matches) universeFrame = requestAnimationFrame(animate);
+    };
+    universeLastFrame = performance.now();
+    animate(universeLastFrame);
+  }
+
+  function handleMotionPreferenceChange() {
+    if (!universe.classList.contains('open')) return;
+    cancelAnimationFrame(universeFrame);
+    universeLastFrame = performance.now();
+    startUniverse();
+  }
+  if (typeof reducedMotionQuery.addEventListener === 'function') {
+    reducedMotionQuery.addEventListener('change', handleMotionPreferenceChange);
+  } else {
+    reducedMotionQuery.addListener(handleMotionPreferenceChange);
+  }
+
+  document.getElementById('openLetter').addEventListener('click', () => {
+    scene.classList.add('open');
+    letterWrap.setAttribute('aria-hidden', 'false');
+    makeHearts();
+  });
+  document.getElementById('closeLetter').addEventListener('click', () => {
+    scene.classList.remove('open');
+    letterWrap.setAttribute('aria-hidden', 'true');
+  });
+  document.getElementById('openUniverse').addEventListener('click', () => {
+    cancelAnimationFrame(universeFrame);
+    if (!editorPanel.hidden) {
+      editorPanel.hidden = true;
+      document.getElementById('editToggle').setAttribute('aria-expanded', 'false');
+    }
+    universe.classList.add('open');
+    universe.setAttribute('aria-hidden', 'false');
+    renderMemoryCards();
+    startUniverse();
+  });
+  document.getElementById('closeUniverse').addEventListener('click', () => {
+    cancelAnimationFrame(universeFrame);
+    universe.classList.remove('open');
+    universe.setAttribute('aria-hidden', 'true');
+    if (universeResizeHandler) window.removeEventListener('resize', universeResizeHandler);
+    universeResizeHandler = null;
+    releaseUniversePhotoUrls();
+    document.getElementById('openUniverse').focus();
+  });
+  universeStage.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoomLevel = Math.max(0.65, Math.min(1.7, zoomLevel - event.deltaY * 0.001));
+    updateMemoryWorldTransform();
+  }, { passive: false });
+  universeStage.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.memory-card')) return;
+    event.preventDefault();
+    universeStage.setPointerCapture(event.pointerId);
+    activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (activePointers.size === 1) lastPointer = { x: event.clientX, y: event.clientY };
+    if (activePointers.size === 2) {
+      const points = Array.from(activePointers.values());
+      pinchDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    }
+  });
+  universeStage.addEventListener('pointermove', (event) => {
+    if (!activePointers.has(event.pointerId)) return;
+    activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (activePointers.size === 1 && lastPointer) {
+      rotationY += (event.clientX - lastPointer.x) * 0.45;
+      rotationX = Math.max(-55, Math.min(55, rotationX - (event.clientY - lastPointer.y) * 0.35));
+      lastPointer = { x: event.clientX, y: event.clientY };
+      updateMemoryWorldTransform();
+    } else if (activePointers.size === 2) {
+      const points = Array.from(activePointers.values());
+      const nextDistance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+      if (pinchDistance > 0) zoomLevel = Math.max(0.65, Math.min(1.7, zoomLevel * nextDistance / pinchDistance));
+      pinchDistance = nextDistance;
+      updateMemoryWorldTransform();
+    }
+  });
+  const finishUniversePointer = (event) => {
+    activePointers.delete(event.pointerId);
+    if (activePointers.size === 1) {
+      const remaining = Array.from(activePointers.values())[0];
+      lastPointer = { x: remaining.x, y: remaining.y };
+    } else {
+      lastPointer = null;
+      pinchDistance = 0;
+    }
+  };
+  universeStage.addEventListener('pointerup', finishUniversePointer);
+  universeStage.addEventListener('pointercancel', finishUniversePointer);
+  document.getElementById('photoViewerClose').addEventListener('click', closePhotoViewer);
+  photoViewer.addEventListener('click', (event) => {
+    if (event.target === photoViewer) closePhotoViewer();
+  });
+  photoViewerImage.addEventListener('click', closePhotoViewer);
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (!photoViewer.hidden) closePhotoViewer();
+    else if (universe.classList.contains('open')) document.getElementById('closeUniverse').click();
+  });
+  musicToggle.addEventListener('click', async () => {
+    if (!musicUrl) {
+      if (ownerEditMode) showStatus('Chọn tệp nhạc trong phần chỉnh sửa trước.');
+      return;
+    }
+    if (music.paused) {
+      try {
+        await music.play();
+        musicToggle.textContent = '♫ Tắt nhạc';
+        musicToggle.setAttribute('aria-pressed', 'true');
+        universeStatus.textContent = '';
+      } catch (error) {
+        universeStatus.textContent = 'Không phát được nhạc: ' + error.message;
+      }
+    } else {
+      music.pause();
+      musicToggle.textContent = '♫ Bật nhạc';
+      musicToggle.setAttribute('aria-pressed', 'false');
+    }
+  });
+  document.getElementById('editToggle').addEventListener('click', (event) => {
+    const isOpen = !editorPanel.hidden;
+    editorPanel.hidden = isOpen;
+    event.currentTarget.setAttribute('aria-expanded', String(!isOpen));
+    if (!isOpen) editorForm.elements.namedItem('title').focus();
+  });
+  document.getElementById('editorClose').addEventListener('click', () => {
+    editorPanel.hidden = true;
+    document.getElementById('editToggle').setAttribute('aria-expanded', 'false');
+  });
+  function addSelectedPhotos(input, destination, render) {
+    const files = Array.from(input.files || []);
+    const invalidFile = files.find((file) => !file.type.startsWith('image/'));
+    if (invalidFile) {
+      showStatus('Chỉ có thể thêm tệp ảnh.');
+      input.value = '';
+      return;
+    }
+    destination.push(...files);
+    input.value = '';
+    render();
+    showStatus(files.length ? 'Đã thêm ảnh. Nhấn “Lưu thay đổi” để lưu.' : '');
+  }
+  letterPhotoInput.addEventListener('change', () => {
+    addSelectedPhotos(letterPhotoInput, letterPhotoFiles, renderLetterPhotos);
+  });
+  spherePhotoInput.addEventListener('change', () => {
+    addSelectedPhotos(spherePhotoInput, spherePhotoFiles, renderSpherePhotos);
+    if (universe.classList.contains('open')) renderMemoryCards();
+  });
+  musicInput.addEventListener('change', () => {
+    const file = musicInput.files && musicInput.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      showStatus('Tệp đã chọn không phải âm thanh.');
+      musicInput.value = '';
+      return;
+    }
+    setMusic(file, file.name);
+    musicInput.value = '';
+    showStatus('Đã chọn nhạc. Nhấn “Lưu thay đổi” để lưu.');
+  });
+  document.getElementById('removeMusic').addEventListener('click', () => {
+    setMusic(null, '');
+    showStatus('Nhạc sẽ được xóa sau khi bạn lưu thay đổi.');
+  });
+  editorForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const settings = Object.fromEntries(Object.keys(defaults).map((key) => [
+      key,
+      editorForm.elements.namedItem(key).value.trim()
+    ]));
+    try {
+      await saveAssets();
+      localStorage.setItem('teacher-card-settings-v1', JSON.stringify(settings));
+      applySettings(settings);
+      showStatus('Đã lưu nội dung, ảnh và nhạc trên trình duyệt này.');
+    } catch (error) {
+      showStatus('Không thể lưu thay đổi: ' + error.message);
+    }
+  });
+  document.getElementById('resetCard').addEventListener('click', async () => {
+    if (!window.confirm('Khôi phục nội dung mặc định và xóa ảnh, nhạc đã thêm?')) return;
+    try {
+      letterPhotoFiles = [];
+      spherePhotoFiles = [];
+      setMusic(null, '');
+      await saveAssets();
+      localStorage.removeItem('teacher-card-settings-v1');
+      applySettings({ ...defaults });
+      renderLetterPhotos();
+      renderSpherePhotos();
+      showStatus('Đã khôi phục nội dung mặc định.');
+    } catch (error) {
+      showStatus('Không thể khôi phục: ' + error.message);
+    }
+  });
+  applySettings(readSettings());
+  loadAssets().then((assets) => {
+    const legacyPhotos = assets.photos && Array.isArray(assets.photos.value) ? assets.photos.value : [];
+    letterPhotoFiles = assets.letterPhotos && Array.isArray(assets.letterPhotos.value)
+      ? assets.letterPhotos.value
+      : legacyPhotos;
+    spherePhotoFiles = assets.spherePhotos && Array.isArray(assets.spherePhotos.value)
+      ? assets.spherePhotos.value
+      : legacyPhotos;
+    renderLetterPhotos();
+    renderSpherePhotos();
+    if (assets.music && assets.music.value instanceof Blob) setMusic(assets.music.value, assets.music.name || 'Nhạc đã lưu');
+    else document.getElementById('musicName').textContent = 'Chưa chọn nhạc.';
+  }).catch((error) => showStatus('Không tải được nội dung đa phương tiện: ' + error.message));
+
+  function makeHearts() {
+    for (let i = 0; i < 28; i++) {
+      const decoration = document.createElement('span');
+      const isPetal = i % 3 === 0;
+      decoration.className = isPetal ? 'petal' : 'heart';
+      decoration.textContent = isPetal ? '✿' : ['♥', '♡'][i % 2];
+      decoration.style.left = (Math.random() * 100) + '%';
+      decoration.style.setProperty('--delay', (Math.random() * 2.5) + 's');
+      decoration.style.setProperty('--duration', (5 + Math.random() * 4) + 's');
+      decoration.style.fontSize = (13 + Math.random() * 17) + 'px';
+      scene.appendChild(decoration);
+      decoration.addEventListener('animationend', () => decoration.remove(), { once: true });
+    }
+  }
+</script>
+</body>
+</html>
