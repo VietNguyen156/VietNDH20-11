@@ -1354,6 +1354,7 @@
         "(prefers-reduced-motion: reduce)",
       );
       const maxLetterPhotos = 3;
+      const sphereRotationDegreesPerMillisecond = 0.012;
       const isLocalPreview =
         window.location.protocol === "file:" ||
         ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
@@ -2022,7 +2023,8 @@
           if (!universe.classList.contains("open")) return;
           const elapsed = Math.min(now - universeLastFrame, 50);
           universeLastFrame = now;
-          if (!reducedMotionQuery.matches) rotationY += elapsed * 0.0004;
+          if (!reducedMotionQuery.matches)
+            rotationY += elapsed * sphereRotationDegreesPerMillisecond;
           updateMemoryWorldTransform();
           drawUniverseBackground(context, canvas, stars, petals, now);
           if (!reducedMotionQuery.matches)
