@@ -170,7 +170,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
         <h3 id="letterPhotoHeading">Ảnh trên thiệp</h3>
         <label class="editor-file">Thêm ảnh vào thiệp
           <input id="letterPhotoInput" type="file" accept="image/*" multiple>
-          <small>Ảnh hiển thị trong nội dung lá thư.</small>
+          <small>Tối đa 3 ảnh hiển thị trong lá thư.</small>
         </label>
         <div class="photo-editor-list" id="letterPhotoEditorList"></div>
       </section>
@@ -178,7 +178,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
         <h3 id="spherePhotoHeading">Ảnh trên tinh cầu</h3>
         <label class="editor-file">Thêm ảnh vào tinh cầu
           <input id="spherePhotoInput" type="file" accept="image/*" multiple>
-          <small>Ảnh hiển thị quanh quả cầu; có thể thêm nhiều ảnh.</small>
+          <small>Ảnh hiển thị quanh quả cầu; không giới hạn số ảnh.</small>
         </label>
         <div class="photo-editor-list" id="spherePhotoEditorList"></div>
       </section>
@@ -257,6 +257,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
   const photoViewer = document.getElementById('photoViewer');
   const photoViewerImage = document.getElementById('photoViewerImage');
   const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const maxLetterPhotos = 3;
   const isLocalPreview = window.location.protocol === 'file:' ||
     ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
   const ownerEditMode = isLocalPreview || new URLSearchParams(window.location.search).get('edit') === '1';
@@ -717,7 +718,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
     editorPanel.hidden = true;
     document.getElementById('editToggle').setAttribute('aria-expanded', 'false');
   });
-  function addSelectedPhotos(input, destination, render) {
+  function addSelectedPhotos(input, destination, render, maxFiles) {
     const files = Array.from(input.files || []);
     const invalidFile = files.find((file) => !file.type.startsWith('image/'));
     if (invalidFile) {
@@ -725,13 +726,25 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
       input.value = '';
       return;
     }
-    destination.push(...files);
+    const remainingSlots = Number.isInteger(maxFiles) ? Math.max(0, maxFiles - destination.length) : files.length;
+    const selectedFiles = files.slice(0, remainingSlots);
+    destination.push(...selectedFiles);
     input.value = '';
     render();
-    showStatus(files.length ? 'Đã thêm ảnh. Nhấn “Lưu thay đổi” để lưu.' : '');
+    if (files.length > selectedFiles.length) {
+      if (maxFiles === maxLetterPhotos && selectedFiles.length === 0) {
+        showStatus('Thiệp đã đủ 3 ảnh; không thêm được ảnh mới.');
+      } else if (maxFiles === maxLetterPhotos) {
+        showStatus('Thiệp tối đa 3 ảnh; đã thêm ' + selectedFiles.length + ' ảnh còn chỗ.');
+      } else {
+        showStatus('Không thêm được ảnh đã chọn.');
+      }
+    } else {
+      showStatus(selectedFiles.length ? 'Đã thêm ảnh. Nhấn “Lưu thay đổi” để lưu.' : '');
+    }
   }
   letterPhotoInput.addEventListener('change', () => {
-    addSelectedPhotos(letterPhotoInput, letterPhotoFiles, renderLetterPhotos);
+    addSelectedPhotos(letterPhotoInput, letterPhotoFiles, renderLetterPhotos, maxLetterPhotos);
   });
   spherePhotoInput.addEventListener('change', () => {
     addSelectedPhotos(spherePhotoInput, spherePhotoFiles, renderSpherePhotos);
@@ -787,9 +800,9 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
   applySettings(readSettings());
   loadAssets().then((assets) => {
     const legacyPhotos = assets.photos && Array.isArray(assets.photos.value) ? assets.photos.value : [];
-    letterPhotoFiles = assets.letterPhotos && Array.isArray(assets.letterPhotos.value)
+    letterPhotoFiles = (assets.letterPhotos && Array.isArray(assets.letterPhotos.value)
       ? assets.letterPhotos.value
-      : legacyPhotos;
+      : legacyPhotos).slice(0, maxLetterPhotos);
     spherePhotoFiles = assets.spherePhotos && Array.isArray(assets.spherePhotos.value)
       ? assets.spherePhotos.value
       : [];
