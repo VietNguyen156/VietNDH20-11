@@ -509,6 +509,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
   function drawUniverseBackground(context, canvas, stars, petals, elapsed) {
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
+    const elapsedSeconds = elapsed / 1000;
     context.clearRect(0, 0, width, height);
     const glow = context.createRadialGradient(width * 0.5, height * 0.46, 10, width * 0.5, height * 0.46, Math.max(width, height) * 0.65);
     glow.addColorStop(0, 'rgba(255, 236, 206, .56)');
@@ -519,7 +520,7 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
     context.fillRect(0, 0, width, height);
 
     stars.forEach((star) => {
-      const twinkle = reducedMotionQuery.matches ? 0.7 : 0.35 + (Math.sin(elapsed * 0.0015 + star.phase) + 1) * 0.3;
+      const twinkle = reducedMotionQuery.matches ? 0.7 : 0.35 + (Math.sin(elapsedSeconds * 1.5 + star.phase) + 1) * 0.3;
       context.globalAlpha = twinkle;
       context.fillStyle = star.gold ? '#b79861' : '#fffdf5';
       context.beginPath();
@@ -529,13 +530,13 @@ button.memory-card{appearance:none;color:inherit;font:inherit;cursor:zoom-in}
     context.globalAlpha = 1;
 
     petals.forEach((petal) => {
-      const progress = reducedMotionQuery.matches ? 0.35 : (elapsed * petal.speed + petal.offset) % 1;
-      const x = petal.x * width + Math.sin(elapsed * 0.0004 + petal.phase) * 18;
+      const progress = reducedMotionQuery.matches ? 0.35 : (elapsedSeconds * petal.speed + petal.offset) % 1;
+      const x = petal.x * width + Math.sin(elapsedSeconds * 0.4 + petal.phase) * 18;
       const y = ((petal.y + progress) % 1) * height;
       context.save();
       context.translate(x, y);
-      context.rotate(elapsed * 0.00025 + petal.phase);
-      context.fillStyle = 'rgba(205, 126, 145, .38)';
+      context.rotate(elapsedSeconds * 0.25 + petal.phase);
+      context.fillStyle = 'rgba(224, 159, 170, .48)';
       context.beginPath();
       context.ellipse(0, 0, 3.2, 5.5, 0, 0, Math.PI * 2);
       context.fill();
